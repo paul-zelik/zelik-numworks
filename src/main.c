@@ -1,17 +1,38 @@
 #include <eadk.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <stdio.h>
+
+#ifndef strdup
+char *strdup(const char *s) {
+  size_t len = strlen(s) + 1;
+  char *copy = malloc(len);
+  if (copy) memcpy(copy, s, len);
+  return copy;
+}
+#endif
 
 const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Markdown";
 const uint32_t eadk_api_level __attribute__((section(".rodata.eadk_api_level"))) = 0;
 
-#define MAX_LIGNES 100
 #define LIGNES_VISIBLE 20
 
-char *lignes[MAX_LIGNES];
-size_t total_lignes = 0;
+typedef enum {
+  TYPE_TEXTE,
+  TYPE_TITRE,
+  TYPE_SOUSTITRE,
+  TYPE_LISTE
+} LigneType;
 
+typedef struct {
+  char *contenu;
+  LigneType type;
+} LigneMarkdown;
+
+#define MAX_LIGNES 100
+LigneMarkdown lignes[MAX_LIGNES];
+size_t total_lignes = 0;
 
 void parse_markdown(const char *data) {
   total_lignes = 0;
@@ -28,7 +49,6 @@ void parse_markdown(const char *data) {
     strncpy(ligne_brute, debut, taille);
     ligne_brute[taille] = '\0';
 
-    // Ligne transformée
     char *ligne_parsee = (char *)malloc(256);
     if (!ligne_parsee) {
       free(ligne_brute);
@@ -36,34 +56,27 @@ void parse_markdown(const char *data) {
     }
     ligne_parsee[0] = '\0';
 
-    // # Titre ou ## Sous-titre
     if (strncmp(ligne_brute, "# ", 2) == 0) {
-      strcat(ligne_parsee, "## ");
-      for (size_t i = 2; i < strlen(ligne_brute); i++)
-        ligne_parsee[strlen(ligne_parsee)] = toupper(ligne_brute[i]);
-      ligne_parsee[strlen(ligne_parsee)] = '\0';
+      strcat(ligne_parsee, ligne_brute + 2);
+      for (size_t i = 0; i < strlen(ligne_parsee); i++) {
+        ligne_parsee[i] = toupper(ligne_parsee[i]);
+      }
+      lignes[total_lignes].type = TYPE_TITRE;
     } else if (strncmp(ligne_brute, "## ", 3) == 0) {
-      strcat(ligne_parsee, "# ");
-      for (size_t i = 3; i < strlen(ligne_brute); i++)
-        ligne_parsee[strlen(ligne_parsee)] = toupper(ligne_brute[i]);
-      ligne_parsee[strlen(ligne_parsee)] = '\0';
-    }
-
-    // > Citation
-    else if (strncmp(ligne_brute, "> ", 2) == 0) {
-      snprintf(ligne_parsee, 255, "│ %s", ligne_brute + 2);
-    }
-
-    // - Liste
-    else if (strncmp(ligne_brute, "- ", 2) == 0) {
+      strcat(ligne_parsee, ligne_brute + 3);
+      for (size_t i = 0; i < strlen(ligne_parsee); i++) {
+        ligne_parsee[i] = toupper(ligne_parsee[i]);
+      }
+      lignes[total_lignes].type = TYPE_SOUSTITRE;
+    } else if (strncmp(ligne_brute, "- ", 2) == 0) {
       snprintf(ligne_parsee, 255, "➤ %s", ligne_brute + 2);
-    }
-
-    // Ligne classique + mise en forme dans le texte
-    else {
+      lignes[total_lignes].type = TYPE_LISTE;
+    } else if (strncmp(ligne_brute, "> ", 2) == 0) {
+      snprintf(ligne_parsee, 255, "│ %s", ligne_brute + 2);
+      lignes[total_lignes].type = TYPE_TEXTE;
+    } else {
       char *src = ligne_brute;
       while (*src && strlen(ligne_parsee) < 240) {
-        // Gras : **texte**
         if (strncmp(src, "**", 2) == 0) {
           src += 2;
           while (*src && strncmp(src, "**", 2) != 0) {
@@ -71,10 +84,7 @@ void parse_markdown(const char *data) {
             src++;
           }
           src += 2;
-        }
-
-        // Italique : *texte*
-        else if (*src == '*') {
+        } else if (*src == '*') {
           src++;
           strcat(ligne_parsee, "/");
           while (*src && *src != '*') {
@@ -83,10 +93,7 @@ void parse_markdown(const char *data) {
           }
           strcat(ligne_parsee, "/");
           if (*src == '*') src++;
-        }
-
-        // Code inline : `texte`
-        else if (*src == '`') {
+        } else if (*src == '`') {
           src++;
           strcat(ligne_parsee, "[");
           while (*src && *src != '`') {
@@ -95,10 +102,7 @@ void parse_markdown(const char *data) {
           }
           strcat(ligne_parsee, "]");
           if (*src == '`') src++;
-        }
-
-        // Lien [texte](url)
-        else if (*src == '[') {
+        } else if (*src == '[') {
           src++;
           char texte[64] = "", url[64] = "";
           size_t i = 0;
@@ -113,18 +117,18 @@ void parse_markdown(const char *data) {
             if (*src == ')') src++;
           }
           snprintf(ligne_parsee + strlen(ligne_parsee), 255 - strlen(ligne_parsee), "%s (%s)", texte, url);
-        }
-
-        // Normal
-        else {
+        } else {
           ligne_parsee[strlen(ligne_parsee)] = *src;
           src++;
         }
       }
       ligne_parsee[strlen(ligne_parsee)] = '\0';
+      lignes[total_lignes].type = TYPE_TEXTE;
     }
 
-    lignes[total_lignes++] = ligne_parsee;
+    lignes[total_lignes].contenu = ligne_parsee;
+    total_lignes++;
+
     free(ligne_brute);
     debut = (*fin) ? fin + 1 : fin;
   }
@@ -132,7 +136,7 @@ void parse_markdown(const char *data) {
 
 void liberer_lignes() {
   for (size_t i = 0; i < total_lignes; i++) {
-    free(lignes[i]);
+    free(lignes[i].contenu);
   }
   total_lignes = 0;
 }
@@ -140,17 +144,38 @@ void liberer_lignes() {
 void afficher_lignes(size_t debut) {
   eadk_display_push_rect_uniform(eadk_screen_rect, eadk_color_white);
 
-  for (size_t i = 0; i < LIGNES_VISIBLE; i++) {
-    size_t ligne_index = debut + i;
-    if (ligne_index >= total_lignes) break;
+  uint16_t y = 0;
+  for (size_t i = 0; i < LIGNES_VISIBLE && (debut + i) < total_lignes; i++) {
+    LigneMarkdown *ligne = &lignes[debut + i];
+    eadk_color_t color = eadk_color_black;
+    uint16_t spacing = 12;
+
+    switch (ligne->type) {
+      case TYPE_TITRE:
+        color = eadk_color_blue;
+        spacing = 20;
+        break;
+      case TYPE_SOUSTITRE:
+        color = eadk_color_blue;
+        spacing = 16;
+        break;
+      case TYPE_LISTE:
+        color = eadk_color_dark_gray;
+        spacing = 14;
+        break;
+      default:
+        spacing = 12;
+        break;
+    }
 
     eadk_display_draw_string(
-      lignes[ligne_index],
-      (eadk_point_t){2, (uint16_t)(i * 12)},
+      ligne->contenu,
+      (eadk_point_t){2, y},
       false,
-      eadk_color_black,
+      color,
       eadk_color_white
     );
+    y += spacing;
   }
 }
 
@@ -178,9 +203,6 @@ void afficher_fichier() {
 
   liberer_lignes();
 }
-
-
-
 
 int main(int argc, char *argv[]) {
   afficher_fichier();

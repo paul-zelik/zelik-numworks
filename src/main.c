@@ -30,7 +30,7 @@ typedef struct {
   LigneType type;
 } LigneMarkdown;
 
-#define MAX_LIGNES 100
+#define MAX_LIGNES 1000
 LigneMarkdown lignes[MAX_LIGNES];
 size_t total_lignes = 0;
 
@@ -160,7 +160,7 @@ void afficher_lignes(size_t debut) {
         spacing = 16;
         break;
       case TYPE_LISTE:
-        color = eadk_color_dark_gray;
+        color = eadk_color_rgb(64, 64, 64);
         spacing = 14;
         break;
       default:

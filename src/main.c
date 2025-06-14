@@ -23,12 +23,9 @@ void fill_background(eadk_color_t color) {
 void replace_all(uint16_t n1, uint16_t n2, eadk_color_t new_color) {
   for (int x = 0; x < WIDTH; x++) {
     for (int y = 0; y < HEIGHT; y++) {
-      if (map[x][y] == n1) {
-        map[x][y] = n2;
-        // Only update color if it's a cell (not a wall) that's being re-assigned
-        if (x % 2 == 1 && y % 2 == 1) {
-            colors[x][y] = new_color;
-        }
+      if (map[x][y] == n1) { // If this cell belongs to the region to be replaced
+        map[x][y] = n2; // Update its region ID to the new ID
+        colors[x][y] = new_color; // Update its color, as n1 always refers to a cell
       }
     }
   }

@@ -1,210 +1,146 @@
 #include <eadk.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdio.h>
 
-#ifndef strdup
-char *strdup(const char *s) {
-  size_t len = strlen(s) + 1;
-  char *copy = malloc(len);
-  if (copy) memcpy(copy, s, len);
-  return copy;
-}
-#endif
-
-const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Markdown";
+const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Maze";
 const uint32_t eadk_api_level __attribute__((section(".rodata.eadk_api_level"))) = 0;
 
-#define LIGNES_VISIBLE 20
+#define WIDTH 21
+#define HEIGHT 17
+#define CELL_W (EADK_SCREEN_WIDTH / WIDTH)
+#define CELL_H (222 / HEIGHT)
 
-typedef enum {
-  TYPE_TEXTE,
-  TYPE_TITRE,
-  TYPE_SOUSTITRE,
-  TYPE_LISTE
-} LigneType;
+uint16_t map[WIDTH][HEIGHT];
+eadk_color_t colors[WIDTH][HEIGHT]; // Add here
 
-typedef struct {
-  char *contenu;
-  LigneType type;
-} LigneMarkdown;
+// Fills the entire screen with a color
+void fill_background(eadk_color_t color) {
+  eadk_display_push_rect_uniform((eadk_rect_t){0, 0, EADK_SCREEN_WIDTH, EADK_SCREEN_HEIGHT}, color);
+}
 
-#define MAX_LIGNES 1000
-LigneMarkdown lignes[MAX_LIGNES];
-size_t total_lignes = 0;
-
-void parse_markdown(const char *data) {
-  total_lignes = 0;
-  const char *debut = data;
-
-  while (*debut && total_lignes < MAX_LIGNES) {
-    const char *fin = strchr(debut, '\n');
-    if (!fin) fin = debut + strlen(debut);
-
-    size_t taille = fin - debut;
-    char *ligne_brute = (char *)malloc(taille + 1);
-    if (!ligne_brute) break;
-
-    strncpy(ligne_brute, debut, taille);
-    ligne_brute[taille] = '\0';
-
-    char *ligne_parsee = (char *)malloc(256);
-    if (!ligne_parsee) {
-      free(ligne_brute);
-      break;
+// Replaces all occurrences of n1 with n2 in the map
+void replace_all(uint16_t n1, uint16_t n2) {
+  for (int x = 0; x < WIDTH; x++) {
+    for (int y = 0; y < HEIGHT; y++) {
+      if (map[x][y] == n1) {
+        map[x][y] = n2;
+      }
     }
-    ligne_parsee[0] = '\0';
+  }
+}
 
-    if (strncmp(ligne_brute, "# ", 2) == 0) {
-      strcat(ligne_parsee, ligne_brute + 2);
-      for (size_t i = 0; i < strlen(ligne_parsee); i++) {
-        ligne_parsee[i] = toupper(ligne_parsee[i]);
+// Returns the values of left/right or top/bottom neighbors depending on y
+void get_neighbors(int x, int y, uint16_t *a, uint16_t *b) {
+  if (y % 2) { // Horizontal wall
+    *a = map[x - 1][y];
+    *b = map[x + 1][y];
+  } else { // Vertical wall
+    *a = map[x][y - 1];
+    *b = map[x][y + 1];
+  }
+}
+
+void draw_maze() {
+  for (int x = 0; x < WIDTH; x++) {
+    for (int y = 0; y < HEIGHT; y++) {
+      eadk_rect_t rect = {
+        .x = x * CELL_W,
+        .y = y * CELL_H,
+        .width = CELL_W,
+        .height = CELL_H
+      };
+      // Use the pre-calculated color from the 'colors' array
+      eadk_display_push_rect_uniform(rect, colors[x][y]);
+    }
+  }
+}
+
+void generate_maze() {
+  // Initialization of the map and fixed colors
+  for (int x = 0; x < WIDTH; x++) {
+    for (int y = 0; y < HEIGHT; y++) {
+      if (x % 2 == 1 && y % 2 == 1) { // Only for cells, not walls
+        map[x][y] = (x / 2) + (y / 2) * (WIDTH / 2) + 1;
+        colors[x][y] = (eadk_color_t)(eadk_random() & 0xFFFF); // assign a random color to each distinct region
+      } else {
+        map[x][y] = 0;
+        colors[x][y] = eadk_color_black; // walls in black
       }
-      lignes[total_lignes].type = TYPE_TITRE;
-    } else if (strncmp(ligne_brute, "## ", 3) == 0) {
-      strcat(ligne_parsee, ligne_brute + 3);
-      for (size_t i = 0; i < strlen(ligne_parsee); i++) {
-        ligne_parsee[i] = toupper(ligne_parsee[i]);
-      }
-      lignes[total_lignes].type = TYPE_SOUSTITRE;
-    } else if (strncmp(ligne_brute, "- ", 2) == 0) {
-      snprintf(ligne_parsee, 255, "➤ %s", ligne_brute + 2);
-      lignes[total_lignes].type = TYPE_LISTE;
-    } else if (strncmp(ligne_brute, "> ", 2) == 0) {
-      snprintf(ligne_parsee, 255, "│ %s", ligne_brute + 2);
-      lignes[total_lignes].type = TYPE_TEXTE;
-    } else {
-      char *src = ligne_brute;
-      while (*src && strlen(ligne_parsee) < 240) {
-        if (strncmp(src, "**", 2) == 0) {
-          src += 2;
-          while (*src && strncmp(src, "**", 2) != 0) {
-            ligne_parsee[strlen(ligne_parsee)] = toupper(*src);
-            src++;
-          }
-          src += 2;
-        } else if (*src == '*') {
-          src++;
-          strcat(ligne_parsee, "/");
-          while (*src && *src != '*') {
-            strncat(ligne_parsee, (char[]){*src, '\0'}, 1);
-            src++;
-          }
-          strcat(ligne_parsee, "/");
-          if (*src == '*') src++;
-        } else if (*src == '`') {
-          src++;
-          strcat(ligne_parsee, "[");
-          while (*src && *src != '`') {
-            strncat(ligne_parsee, (char[]){*src, '\0'}, 1);
-            src++;
-          }
-          strcat(ligne_parsee, "]");
-          if (*src == '`') src++;
-        } else if (*src == '[') {
-          src++;
-          char texte[64] = "", url[64] = "";
-          size_t i = 0;
-          while (*src && *src != ']' && i < 63) texte[i++] = *src++;
-          texte[i] = '\0';
-          if (*src == ']') src++;
-          if (*src == '(') {
-            src++;
-            i = 0;
-            while (*src && *src != ')' && i < 63) url[i++] = *src++;
-            url[i] = '\0';
-            if (*src == ')') src++;
-          }
-          snprintf(ligne_parsee + strlen(ligne_parsee), 255 - strlen(ligne_parsee), "%s (%s)", texte, url);
-        } else {
-          ligne_parsee[strlen(ligne_parsee)] = *src;
-          src++;
+    }
+  }
+
+  // Generates the list of possible positions
+  int max_poss = (WIDTH / 2) * (HEIGHT - 2);
+  int poss_x[max_poss], poss_y[max_poss], poss_len = 0;
+
+  for (int y = 1; y < HEIGHT - 1; y++) {
+    for (int x = 1; x < WIDTH - 1; x++) { // Iterate through all potential wall positions
+        if ((x % 2 == 0 && y % 2 == 1) || (x % 2 == 1 && y % 2 == 0)) { // Only walls that separate two cells
+            poss_x[poss_len] = x;
+            poss_y[poss_len] = y;
+            poss_len++;
         }
+    }
+  }
+
+  // Random merge
+  while (poss_len > 0) {
+    int i = eadk_random() % poss_len;
+    int x = poss_x[i];
+    int y = poss_y[i];
+
+    uint16_t a, b;
+    get_neighbors(x, y, &a, &b);
+
+    if (a != b && a != 0 && b != 0) {
+      uint16_t smaller_id = (a < b) ? a : b;
+      uint16_t larger_id = (a > b) ? a : b;
+
+      replace_all(larger_id, smaller_id);
+      map[x][y] = smaller_id;
+
+      // Propagate the color of the smaller_id region to the current wall position
+      // Find a cell belonging to the smaller_id region and get its color
+      for (int cx = 0; cx < WIDTH; cx++) {
+          for (int cy = 0; cy < HEIGHT; cy++) {
+              if (map[cx][cy] == smaller_id && (cx % 2 == 1 && cy % 2 == 1)) {
+                  colors[x][y] = colors[cx][cy];
+                  goto found_color; // Break out of nested loops once color is found
+              }
+          }
       }
-      ligne_parsee[strlen(ligne_parsee)] = '\0';
-      lignes[total_lignes].type = TYPE_TEXTE;
+      found_color:; // Label for goto
+
+      draw_maze();
+      eadk_display_wait_for_vblank(); // Force display update
+      eadk_timing_msleep(30);
     }
 
-    lignes[total_lignes].contenu = ligne_parsee;
-    total_lignes++;
-
-    free(ligne_brute);
-    debut = (*fin) ? fin + 1 : fin;
+    // Remove the processed element
+    poss_x[i] = poss_x[poss_len - 1];
+    poss_y[i] = poss_y[poss_len - 1];
+    poss_len--;
   }
 }
 
-void liberer_lignes() {
-  for (size_t i = 0; i < total_lignes; i++) {
-    free(lignes[i].contenu);
-  }
-  total_lignes = 0;
-}
-
-void afficher_lignes(size_t debut) {
-  eadk_display_push_rect_uniform(eadk_screen_rect, eadk_color_white);
-
-  uint16_t y = 0;
-  for (size_t i = 0; i < LIGNES_VISIBLE && (debut + i) < total_lignes; i++) {
-    LigneMarkdown *ligne = &lignes[debut + i];
-    eadk_color_t color = eadk_color_black;
-    uint16_t spacing = 12;
-
-    switch (ligne->type) {
-      case TYPE_TITRE:
-        color = eadk_color_blue;
-        spacing = 20;
-        break;
-      case TYPE_SOUSTITRE:
-        color = eadk_color_blue;
-        spacing = 16;
-        break;
-      case TYPE_LISTE:
-        color = eadk_color_rgb(64, 64, 64);
-        spacing = 14;
-        break;
-      default:
-        spacing = 12;
-        break;
-    }
-
-    eadk_display_draw_string(
-      ligne->contenu,
-      (eadk_point_t){2, y},
-      false,
-      color,
-      eadk_color_white
-    );
-    y += spacing;
-  }
-}
-
-void afficher_fichier() {
-  parse_markdown(eadk_external_data);
-
-  size_t offset = 0;
-
+int main(int argc, char * argv[]) {
   while (1) {
-    afficher_lignes(offset);
-    eadk_timing_msleep(100);
+    fill_background(eadk_color_white);
+    generate_maze();
+    draw_maze();
 
-    eadk_keyboard_state_t keys = eadk_keyboard_scan();
+    // Wait until the user presses OK or BACK
+    while (1) {
+      eadk_keyboard_state_t state = eadk_keyboard_scan();
 
-    if (eadk_keyboard_key_down(keys, eadk_key_down)) {
-      if (offset + LIGNES_VISIBLE < total_lignes) offset++;
-    }
-    if (eadk_keyboard_key_down(keys, eadk_key_up)) {
-      if (offset > 0) offset--;
-    }
-    if (eadk_keyboard_key_down(keys, eadk_key_back)) {
-      break;
+      if (eadk_keyboard_key_down(state, eadk_key_ok)) {
+        break; // Restart generation
+      }
+      if (eadk_keyboard_key_down(state, eadk_key_back)) {
+        return 0; // Exit
+      }
+      eadk_timing_msleep(50);
     }
   }
-
-  liberer_lignes();
-}
-
-int main(int argc, char *argv[]) {
-  afficher_fichier();
-  return 0;
 }

@@ -15,6 +15,8 @@ Zelik-Numworks est une application qui affiche un labyrinthe multi-couleur qui s
 Voici quelques exemples de l'application en action :
 
 ![Exemple 1](images/ex.gif)
+
+
 *Equivalent Python*
 
 ## Installation

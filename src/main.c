@@ -19,12 +19,16 @@ void fill_background(eadk_color_t color) {
   eadk_display_push_rect_uniform((eadk_rect_t){0, 0, EADK_SCREEN_WIDTH, EADK_SCREEN_HEIGHT}, color);
 }
 
-// Replaces all occurrences of n1 with n2 in the map
-void replace_all(uint16_t n1, uint16_t n2) {
+// Replaces all occurrences of n1 by n2 in the map AND updates their colors to new_color
+void replace_all(uint16_t n1, uint16_t n2, eadk_color_t new_color) {
   for (int x = 0; x < WIDTH; x++) {
     for (int y = 0; y < HEIGHT; y++) {
       if (map[x][y] == n1) {
         map[x][y] = n2;
+        // Only update color if it's a cell (not a wall) that's being re-assigned
+        if (x % 2 == 1 && y % 2 == 1) {
+            colors[x][y] = new_color;
+        }
       }
     }
   }
@@ -97,20 +101,25 @@ void generate_maze() {
       uint16_t smaller_id = (a < b) ? a : b;
       uint16_t larger_id = (a > b) ? a : b;
 
-      replace_all(larger_id, smaller_id);
-      map[x][y] = smaller_id;
-
-      // Propagate the color of the smaller_id region to the current wall position
-      // Find a cell belonging to the smaller_id region and get its color
+      eadk_color_t color_of_smaller_id = eadk_color_black; // Default to black, will be overwritten
+      // Find the color associated with smaller_id. We need to iterate through actual cells.
       for (int cx = 0; cx < WIDTH; cx++) {
           for (int cy = 0; cy < HEIGHT; cy++) {
               if (map[cx][cy] == smaller_id && (cx % 2 == 1 && cy % 2 == 1)) {
-                  colors[x][y] = colors[cx][cy];
-                  goto found_color; // Break out of nested loops once color is found
+                  color_of_smaller_id = colors[cx][cy];
+                  goto found_color_for_replace_all; // Exit loops once color is found
               }
           }
       }
-      found_color:; // Label for goto
+      found_color_for_replace_all:; // Label for goto
+
+      // Update map values and propagate the unified color to all affected cells
+      replace_all(larger_id, smaller_id, color_of_smaller_id);
+      
+      // Also set the color of the wall that just became a path
+      map[x][y] = smaller_id;
+      colors[x][y] = color_of_smaller_id;
+
 
       draw_maze();
       eadk_display_wait_for_vblank(); // Force display update

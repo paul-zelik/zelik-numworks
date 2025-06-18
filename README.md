@@ -49,4 +49,4 @@ Si vous souhaitez contribuer à Zelik-Numworks, n'hésitez pas à soumettre une 
 
 ## Licence
 
-Ce projet est sous licence [MIT](LICENSE).
+Ce projet est sous licence [MIT](LICENSE). Disponible sur Epsilon.

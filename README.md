@@ -17,7 +17,7 @@ Voici quelques exemples de l'application en action :
 ![Exemple 1](images/ex.gif)
 
 
-*Equivalent Python*
+*Equivalent d'un code Python disponible sur le workshop de Numworks*
 
 ## Installation
 

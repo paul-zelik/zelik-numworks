@@ -2,51 +2,51 @@
 
 ![Logo Zelik-Numworks](images/logo.png)
 
-Zelik-Numworks est une application qui affiche un labyrinthe multi-couleur qui s'agrandit à chaque tour. Ce projet est conçu pour être utilisé sur les calculatrices NumWorks.
+Zelik-Numworks is an application that displays a multi-coloured maze that grows larger with each turn. This project is designed to be used on NumWorks calculators.
 
-## Fonctionnalités
+## Features
 
-- Génération d'un labyrinthe dynamique
-- Agrandissement du labyrinthe à chaque tour
-- Affichage multi-couleur pour une meilleure expérience visuelle
+- Generation of a dynamic maze
+- Enlargement of the maze with each turn
+- Multi-colour display for a better visual experience
 
-## Exemples d'application
+## Application examples
 
-Voici quelques exemples de l'application en action :
+Here are some examples of the application in action:
 
-![Exemple 1](images/ex.gif)
+![Example 1](images/ex.gif)
 
 
-*Equivalent d'un code Python disponible sur le workshop de Numworks*
+*Equivalent Python code available on the Numworks workshop*
 
 ## Installation
 
-Pour installer Zelik-Numworks sur votre calculatrice NumWorks, suivez ces étapes :
+To install Zelik-Numworks on your NumWorks calculator, follow these steps:
 
-1. Téléchargez le fichier `.nwa` depuis la [page des versions](https://github.com/paul-zelik/zelik-numworks/releases).
-2. Connectez votre calculatrice NumWorks à votre ordinateur.
-3. Utilisez l'outil de transfert NumWorks pour transférer le fichier `.nwa` sur votre calculatrice.
-4. Redémarrez votre calculatrice et sélectionnez Zelik depuis le menu.
+1. Download the `.nwa` file from the [versions page](https://github.com/paul-zelik/zelik-numworks/releases).
+2. Connect your NumWorks calculator to your computer.
+3. Use the NumWorks transfer tool to transfer the `.nwa` file to your calculator.
+4. Restart your calculator and select Zelik from the menu.
 
-## Utilisation
+## Usage
 
-Pour utiliser Zelik-Numworks :
+To use Zelik-Numworks:
 
-1. Lancez l'application depuis le menu de votre calculatrice NumWorks.
-2. Utilisez la Touches `OK` pour rénistialiser le labyrinthe.
-3. Observez le labyrinthe s'agrandir et changer de couleur à chaque tour.
+1. Launch the application from the menu on your NumWorks calculator.
+2. Use the `OK` key to reset the maze.
+3. Watch the maze grow and change colour with each turn.
 
-## Contributeurs
+## Contributors
 
-Un grand merci à tous nos contributeurs :
+Here is the list of contributors :
 
 - [Paul Betinelli](https://github.com/paul-zelik)
 - [Ecco](https://github.com/Ecco)
 - [Emilie Numworks](https://github.com/EmilieNumworks)
 - [SquarePoint](https://my.numworks.com/python/squarepoint)
-
-Si vous souhaitez contribuer à Zelik-Numworks, n'hésitez pas à soumettre une pull request ou à ouvrir une issue. Contactez moi par email : betinellipaul@byflash.fr
+- 
+If you would like to contribute to Zelik-Numworks, please feel free to submit a pull request or open an issue. Contact me by email: betinellipaul@byflash.fr
 
 ## Licence
 
-Ce projet est sous licence [MIT](LICENSE). Disponible sur Epsilon, Omega et Upsilon.
+This project is licensed under [MIT](LICENSE). Available on Epsilon, Omega, and Upsilon.
